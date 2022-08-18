@@ -1,0 +1,60 @@
+install.packages("pacman")
+library(pacman)
+p_load(dplyr, janitor, ggplot2, plotly, quantreg)
+
+safe_havens_data <- clean_names(data)
+safe_havens_narm <- safe_havens_data[complete.cases(safe_havens_data),]
+names(safe_havens_narm)[names(safe_havens_narm) == "risi"] <- "risi"
+safe_havens_new <- safe_havens_narm
+ggplot(safe_havens_new, aes(x=risi, y=rsp, col=status))+geom_point()+
+  geom_smooth(method = "lm", col="blue")
+plot(rsp ~ risi, data = safe_havens_new)
+abline(lm(rsp ~ risi, data = safe_havens_new), col="blue", lwd=3)
+abline(rq(rsp ~ risi, tau=0.5, data = safe_havens_new), col="red", lwd=4)
+abline(rq(rsp ~ risi, tau=0.1, data = safe_havens_new), col="black", lwd=4)
+abline(rq(rsp ~ risi, tau=0.5, data = safe_havens_new), col="red", lwd=4)
+abline(rq(rsp ~ risi, tau=0.95, data = safe_havens_new), col="turquoise", lwd=4)
+
+ols_sha <- rq(rsp ~ risi, data = safe_havens_new)
+qu_med_sha <- lm(rsp ~ risi, tau=0.5, data = safe_havens_new)
+qu_1st_sha <- lm(rsp ~ risi, tau=0.1, data = safe_havens_new)
+qu_last_sha <- lm(rsp ~ risi, tau=0.95, data = safe_havens_new)
+summary(ols_sha)
+summary(qu_med_sha)
+summary(qu_1st_sha)
+summary(qu_last_sha)
+taus<-seq(from = .05, to = .95, by = 0.05)
+quant_all_sha <-rq(rsp ~ risi, tau=taus, data = safe_havens_new)
+summary(quant_all_sha)
+quant_all_sha$coefficients
+
+quant_loop_sha <- function(x,y,h,m=19,tau=0.5)
+{
+  xx <- seq(min(x),max(x),length=m)
+  fv <- xx
+  dv <- xx
+  for(i in 1:length(xx)) {
+    z <- x - xx[i]
+    wx <- dnorm(z/h)
+    r <- rq(y~z, weights=wx, tau=tau, ci=FALSE)
+    fv[i] <- r$coef[1.]
+    dv[i] <- r$coef[2.]
+  }
+  data.frame(dv=dv)
+}
+taus<-seq(from = .05, to = .95, by = 0.05)
+QQR.coef_sha <- as.data.frame(matrix(0,ncol=19,nrow=19))
+
+o_sha <- safe_havens_narm$rsp
+p_sha <- safe_havens_narm$risi
+for(i in 1:19){
+  x_sha <- quant_loop_sha(o_sha, p_sha, 0.05, tau=taus[i])
+  QQR.coef_sha[, i] <- x_sha
+}
+QQR.coef_sha
+
+r_sp <- as.matrix(QQR.coef_sha)
+p <- plot_ly(z= ~r_sp, x=~taus, y=~taus, opacity =0.7) %>%
+  add_markers
+p %>% add_surface(z=~r_sp, x=~taus, y=~taus, showscale=TRUE) %>%
+  layout(showlegend = FALSE)
