@@ -1,0 +1,61 @@
+# Stata
+
+# Data Processing
+gen date_n = date(date, "MDY")
+format date_n %tw
+drop date
+rename date_n date
+tsset date, weekly
+twoway (tsline rgold)
+
+# Descriptive Statistics
+local vars rgold rdxy rtb rbtc raaii rfgi rnepu risi
+summarize `vars'
+summarize `vars', detail
+sktest `vars'
+
+# Unit Root Test
+foreach var of local vars {
+    dfuller `var', lags(0)
+    pperron `var'
+}
+sktest `vars'
+
+# Correlation
+correlate `vars'
+pwcorr `vars', star(0.01 0.05 0.1) sig
+
+# Linear & Quantile Regression on Natural Logarithm Returns
+foreach depvar in rgold rdxy rtb rbtc {
+    regress `depvar' risi
+}
+
+local quantiles 0.05(0.05)0.95
+foreach depvar in rgold rdxy rtb rbtc {
+    sqreg `depvar' risi, q(`quantiles')
+}
+
+# Linear & Quantile Regression on Returns and Excess Returns
+foreach item in gold dxy tb btc {
+    regress p`item' risi
+    regress e`item' risi
+    
+    sqreg p`item' risi, q(`quantiles')
+    sqreg e`item' risi, q(`quantiles')
+}
+
+# PCA - Principal Component Analysis
+foreach var in aaii fgi nepu {
+    egen float s`var' = std(`var'), mean(0) sd(1)
+}
+pca saaii sfgi snepu, components(1) covariance
+screeplot
+predict factor
+
+# DFA - Dynamic Factor Analysis
+dfactor (D.(saaii sfgi snepu) =, noconstant) (f=, ar(1/2)), nolog
+tsappend, add(3)
+predict saaii_f, dynamic(624)
+tsline D.saaii saaii_f if obs >= 2
+predict factor_dfa, factor
+tsline factor_dfa
