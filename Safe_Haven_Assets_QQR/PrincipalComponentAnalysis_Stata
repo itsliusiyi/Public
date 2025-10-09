@@ -59,3 +59,4 @@ predict saaii_f, dynamic(624)
 tsline D.saaii saaii_f if obs >= 2
 predict factor_dfa, factor
 tsline factor_dfa
+
