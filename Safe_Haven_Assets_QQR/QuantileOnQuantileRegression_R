@@ -1,0 +1,105 @@
+# R
+
+# Settings
+rm(list = ls())
+install.packages("pacman")
+library(pacman)
+p_load(dplyr, janitor, ggplot2, plotly, quantreg)
+
+# Data Processing
+preprocess_data <- function(data) {
+  safe_havens_data <- clean_names(data)
+  safe_havens_narm <- safe_havens_data[complete.cases(safe_havens_data), ]
+  names(safe_havens_narm)[names(safe_havens_narm) == "risi"] <- "risi"
+  return(safe_havens_narm)
+}
+
+# Basic Analysis
+basic_analysis <- function(data, dep_var) {
+  # Plot
+  ggplot(data, aes(x = risi, y = .data[[dep_var]], col = status)) +
+    geom_point() + geom_smooth(method = "lm", col = "blue")
+  
+  plot(data[[dep_var]] ~ data$risi, main = dep_var)
+  abline(lm(data[[dep_var]] ~ data$risi), col = "blue", lwd = 3)
+  abline(rq(data[[dep_var]] ~ data$risi, tau = 0.5), col = "red", lwd = 4)
+  abline(rq(data[[dep_var]] ~ data$risi, tau = 0.1), col = "black", lwd = 4)
+  abline(rq(data[[dep_var]] ~ data$risi, tau = 0.95), col = "turquoise", lwd = 4)
+
+  # Regression
+  taus <- seq(0.05, 0.95, 0.05)
+  quant_model <- rq(as.formula(paste(dep_var, "~ risi")), tau = taus, data = data)
+  
+  return(list(
+    ols = summary(lm(as.formula(paste(dep_var, "~ risi")), data = data)),
+    quant_median = summary(rq(as.formula(paste(dep_var, "~ risi")), tau = 0.5, data = data)),
+    quant_all = summary(quant_model),
+    coefficients = quant_model$coefficients
+  ))
+}
+
+# Quantile on Quantile Regression Analysis
+qqr_analysis <- function(data, dep_var) {
+  quant_loop <- function(x, y, h = 0.05, m = 19, tau = 0.5) {
+    xx <- seq(min(x), max(x), length = m)
+    dv <- numeric(m)
+    for(i in 1:length(xx)) {
+      z <- x - xx[i]
+      wx <- dnorm(z / h)
+      r <- rq(y ~ z, weights = wx, tau = tau, ci = FALSE)
+      dv[i] <- r$coef[2]
+    }
+    return(data.frame(dv = dv))
+  }
+  
+  taus <- seq(0.05, 0.95, 0.05)
+  QQR_coef <- matrix(0, ncol = 19, nrow = 19)
+
+  for(i in 1:19) {
+    x_result <- quant_loop(data[[dep_var]], data$risi, tau = taus[i])
+    QQR_coef[, i] <- x_result$dv
+  }
+
+  # 3D Plot
+  matrix_data <- as.matrix(QQR_coef)
+  p <- plot_ly(z = ~matrix_data, x = ~taus, y = ~taus, opacity = 0.7) %>%
+    add_markers() %>%
+    add_surface(showscale = TRUE) %>%
+    layout(showlegend = FALSE, title = paste("QQR Analysis for", dep_var))
+  
+  return(list(matrix = matrix_data, plot = p))
+}
+
+# Full Analysis Results
+run_complete_analysis <- function(data, dep_vars) {
+  processed_data <- preprocess_data(data)
+  
+  results <- list()
+  for(dep_var in dep_vars) {
+    cat("Analyzing:", dep_var, "\n")
+    
+    # Basic Analysis
+    results[[dep_var]]$basic <- basic_analysis(processed_data, dep_var)
+    
+    # Quantile on Quantile Regression Analysis
+    results[[dep_var]]$qqr <- qqr_analysis(processed_data, dep_var)
+  }
+  
+  return(results)
+}
+
+# Examples
+# Define variables
+return_vars <- c("rgold", "rdxy", "rtb", "rbtc") # actually natural logarithm of returns
+price_vars <- c("pgold", "pdxy", "ptb", "pbtc") # actually returns
+exret_vars <- c("egold", "edxy", "etb", "ebtc") # actually excess returns relative to SP500
+
+all_vars <- c(return_vars, price_vars, exret_vars)
+
+# Execute Full Analysis
+final_results <- run_complete_analysis(data, all_vars)
+
+# Or Execute Part of Analysis
+# return_results <- run_complete_analysis(data, return_vars)
+# price_results <- run_complete_analysis(data, price_vars)
+# exret_results <- run_complete_analysis(data, exret_vars)
