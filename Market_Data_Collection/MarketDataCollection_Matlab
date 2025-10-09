@@ -1,1 +1,167 @@
+# Matlab
 
+# Fetch quant data from database
+function QuantData = fetchQuantData(QuantAssets, config)
+    conn = database(config.database.connString, config.database.username, config.database.password);
+    
+    try
+        # Build query
+        assetIDs = QuantAssets.id_code;
+        query = buildQuantQuery(assetIDs);
+        
+        # Execute query
+        QuantData = fetch(conn, query);
+        
+        # Data cleaning and formatting
+        QuantData.Properties.VariableNames = {'id', 'date', 'price'};
+        QuantData.date = datetime(QuantData.date, 'InputFormat', 'dd/MM/yyyy');
+        QuantData = sortrows(QuantData, 'date');
+        
+    catch ME
+        close(conn);
+        rethrow(ME);
+    end
+    
+    close(conn);
+end
+
+# Build quant data SQL query
+function query = buildQuantQuery(assetIDs)
+    if isempty(assetIDs)
+        error('No available asset IDs');
+    end
+    
+    # Build IN clause
+    idString = strjoin(cellstr(assetIDs), "','");
+    idString = sprintf('(''#s'')', idString);
+    
+    query = ['select f.FUND_ID, p.PORTFOLIO_CALCULATION_DI, f.FUND_FIGURE_VALUE ' ...
+             'from portfolio_calculation p, fund_Detail f ' ...
+             'where p.PORTFOLIO_CALCULATION_ID = f.PORTFOLIO_CALCULATION_ID ' ...
+             'and f.FUND_ID in ' idString ...
+             ' and f.FUND_FIGURE_LINE_H0 in (123,176,154) ' ...
+             'order by 2'];
+end
+
+# Fetch FactSet data via Factset API
+function factsetData = fetchFactSetData(factsetAssets)
+    factsetData = struct();
+    if ~isempty(factsetAssets)
+        assetIDs = unique(factsetAssets.id_code, 'stable');
+        factsetData = GetFactSetTimeSeriesData(fldr, assetIDs, formula);
+        fprintf('FactSet data fetching: #d assets\n', length(assetIDs));
+    end
+end
+
+# Merge price data from different data sources
+function combinedData = combinePriceData(QuantData, factsetData)
+    combinedData = struct();
+    # Implement data merging logic here
+    # Including date alignment, missing value handling, etc.
+    fprintf('Price data merging completed\n');
+end
+
+# Define analysis date range
+function dates = defineAnalysisDates()
+    dateEnd = dateshift(datetime('now') - 1, 'start', 'day');
+    dates = struct();
+    dates.current = dateEnd;
+    
+    # Define different time periods
+    periods = {'month', 'quarter', 'year'};
+    for i = 1:length(periods)
+        fieldName = sprintf('last_#s_end', periods{i});
+        dates.(fieldName) = dateshift(dateEnd, 'start', periods{i}) - 1;
+    end
+    
+    # Define historical years
+    years = [1, 3, 5, 10, 20];
+    for i = 1:length(years)
+        fieldName = sprintf('y#d_ago', years(i));
+        dates.(fieldName) = dateEnd - calyears(years(i));
+    end
+end
+
+# Calculate performance metrics
+function returns = calculateReturns(priceData, dates)
+    returns = struct();
+    # Implement return calculation logic
+end
+
+function volatility = calculateVolatility(priceData, dates)
+    volatility = struct();
+    # Implement volatility calculation logic
+end
+
+function averages = calculateaverages(priceData, dates)
+    averages = struct();
+    # Implement average calculation logic
+end
+
+# Create HTML format report
+function htmlReport = createHTMLReport(metrics)
+    htmlReport = struct();
+    # Create tables for each asset class
+    assetClasses = {'Summary', 'Quant_Strategies', 'Equities', 'Fixed_Income', 'Commodities', 'Currencies'};
+    for i = 1:length(assetClasses)
+        className = assetClasses{i};
+        htmlReport.(className) = createAssetClassTable(metrics, className);
+    end
+    fprintf('HTML report generation completed\n');
+end
+
+# Send email report
+function sendEmailReport(htmlReport, config)
+    try
+        # Create Outlook application object
+        h = actxserver('outlook.Application');
+        mail = h.CreateItem(0);
+        
+        # Set email properties
+        mail.Subject = 'Market Performance Update';
+        mail.To = config.email.recipient;
+        mail.BodyFormat = 'olFormatHTML';
+        
+        # Build email content
+        emailBody = buildEmailBody(htmlReport, config);
+        mail.HTMLBody = emailBody;
+        
+        # Display email (or use mail.Send to send directly)
+        mail.Display;
+        fprintf('Performance report email is ready\n');
+    catch ME
+        fprintf('Email sending failed: #s\n', ME.message);
+    end
+end
+
+# Build email body
+function emailBody = buildEmailBody(htmlReport, config)
+    dateEnd = datetime('now') - 1;
+    emailBody = [...
+        '<html><head><style>', ...
+        'body {font-family: Calibri, sans-serif; font-size: 10.5pt;}', ...
+        'table {border-collapse: collapse; width: 100#;}', ...
+        'th, td {border: 1px solid #ddd; padding: 8px; text-align: left;}', ...
+        'th {background-color: #f2f2f2;}', ...
+        'hr {border: 0; border-top: 1px solid #eee; margin: 20px 0;}', ...
+        '</style></head><body>', ...
+        '<p>Hello all,</p>', ...
+        '<p>Please see the latest market performance for key indicators as of ', ...
+        datestr(dateEnd, 'dd/mm/yyyy'), ' below:</p>', ...
+        htmlReport.Summary, ...
+        '<hr>', ...
+        '<p>Detailed performance by asset class:</p>', ...
+        htmlReport.Quant_Strategies, ...
+        htmlReport.Equities, ...
+        htmlReport.Fixed_Income, ...
+        htmlReport.Commodities, ...
+        htmlReport.Currencies, ...
+        '<hr>', ...
+        '<p><b>Best Regards,</b><br>', ...
+        config.email.sender, '<br>', ...
+        config.email.jobtitle, '<br>', ...
+        'Email: <a href="mailto:', config.email.address, '">', config.email.address, '</a><br>', ...
+        'Mobile: ', config.email.mobile, '<br>', ...
+        '<a href="http://www.Quant.com/">www.Quant.com</a></p>', ...
+        '</body></html>'];
+end
