@@ -1,3 +1,13 @@
+# Python
+
+# This quantitative trading strategy employed unsupervised learning to systematically select and weight S&P 500 stocks.
+# The process started by downloading historical price data and computing technical indicators including ATR, Bollinger Bands, and RSI.
+# After filtering for the top 150 most liquid stocks, the strategy incorporated Fama-French five-factor models to assess risk exposures.
+# It selected stocks based on K-Means clustering with RSI-based initialization.
+# Using mean-variance optimization, the strategy maximizes the Sharpe ratio while implementing weight constraints to ensure diversification.
+# Compared the cumulative returns of this strategy vs. S&P 500.
+
+
 # %% [markdown]
 # ## 1.Download S&P 500 price data
 
