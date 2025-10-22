@@ -1,5 +1,10 @@
 # R
 
+# The study employed the Investment Sentiment Index (RISI) as the core explanatory variable, utilizing quantile on quantile regression methods to systematically analyze the differential impact of market sentiment on returns across various safe-haven assets.
+# The research examined not only the average relationship between sentiment and asset returns, but also focused specifically on periods of extreme market volatility when sentiment reaches either extremely high or low quantiles.
+# Uncovered how assets such as gold, the US Dollar Index, government bonds, and Bitcoin respond across different tails of the return distribution.
+# This analytical approach revealed the asymmetric transmission mechanisms of sentiment shocks on safe-haven assets during bull, bear, and normal market conditions.
+
 # Settings
 rm(list = ls())
 install.packages("pacman")
