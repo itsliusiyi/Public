@@ -1,8 +1,11 @@
-# %% [markdown]
-# ## 1. Calculate the Covariance and Correlations
+# Python
 
 # %% [markdown]
-# This code analyzes dynamic correlations between five major asset classes using exponentially weighted moving average (EWMA) applied to 5-year rolling returns. It processes historical data from 1995 to present, calculating time-varying covariance and correlation matrices that emphasize recent market dynamics while maintaining long-term perspective.
+# This code analyzes dynamic correlations between five major asset classes using exponentially weighted moving average (EWMA) applied to 5-year rolling returns.
+# It processes historical data from 1995 to present, calculating time-varying covariance and correlation matrices that emphasize recent market dynamics while maintaining long-term perspective.
+
+# %% [markdown]
+# ## 1. Calculate the Covariance and Correlations
 
 # %%
 # import necessary libraries
